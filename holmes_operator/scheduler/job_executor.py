@@ -526,4 +526,11 @@ def _generate_healthcheck_object(
         healthcheck["spec"]["destinations"] = [
             d.model_dump() for d in spec.destinations
         ]
+
+    if spec.toolsets:
+        healthcheck["spec"]["toolsets"] = spec.toolsets
+
+    if spec.disableAllByDefault:
+        healthcheck["spec"]["disableAllByDefault"] = True
+
     return healthcheck

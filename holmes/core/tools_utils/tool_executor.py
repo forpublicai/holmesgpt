@@ -150,6 +150,44 @@ class ToolExecutor:
         clone.oauth_connector = self.oauth_connector  # Shared reference
         return clone
 
+    def clone_with_toolset_filter(
+        self,
+        enabled_toolsets: Optional[List[str]] = None,
+        disabled_toolsets: Optional[List[str]] = None,
+        disable_all_by_default: bool = False,
+    ) -> "ToolExecutor":
+        """Create a filtered clone of ToolExecutor restricting active toolsets for a request."""
+        clone = object.__new__(ToolExecutor)
+        clone.oauth_connector = self.oauth_connector
+
+        enabled_set = set(enabled_toolsets or [])
+        disabled_set = set(disabled_toolsets or [])
+
+        # Filter enabled_toolsets list
+        new_enabled_toolsets = []
+        for ts in self.enabled_toolsets:
+            if disable_all_by_default:
+                if ts.name in enabled_set and ts.name not in disabled_set:
+                    new_enabled_toolsets.append(ts)
+            else:
+                if ts.name not in disabled_set:
+                    new_enabled_toolsets.append(ts)
+
+        clone.toolsets = self.toolsets
+        clone.enabled_toolsets = new_enabled_toolsets
+        allowed_toolset_names = {ts.name for ts in new_enabled_toolsets}
+
+        # Filter tools_by_name and _tool_to_toolset
+        clone.tools_by_name = {}
+        clone._tool_to_toolset = {}
+        for tool_name, tool in self.tools_by_name.items():
+            ts = self._tool_to_toolset.get(tool_name)
+            if ts and ts.name in allowed_toolset_names:
+                clone.tools_by_name[tool_name] = tool
+                clone._tool_to_toolset[tool_name] = ts
+
+        return clone
+
     def clone_with_extra_tools(self, extra_tools: List[Tool]) -> "ToolExecutor":
         """Create a shallow clone with additional tools registered.
 

@@ -73,6 +73,14 @@ spec:
                         type: object
                         description: "Destination-specific configuration"
                         x-kubernetes-preserve-unknown-fields: true
+                toolsets:
+                  type: object
+                  description: "Toolsets to enable or configure specifically for this health check"
+                  x-kubernetes-preserve-unknown-fields: true
+                disableAllByDefault:
+                  type: boolean
+                  description: "When true, disables all toolsets by default and only enables those specified in toolsets"
+                  default: false
             status:
               type: object
               properties:

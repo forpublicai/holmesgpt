@@ -53,6 +53,7 @@ from holmes.plugins.toolsets.investigator.core_investigation import (
     CoreInvestigationToolset,
 )
 from holmes.plugins.toolsets.kafka import KafkaToolset
+from holmes.plugins.toolsets.kubernetes_fast import KubernetesFastToolset
 from holmes.plugins.toolsets.kubernetes_logs import KubernetesLogsToolset
 from holmes.plugins.toolsets.mcp.aws_mcp import AwsMCPToolset
 from holmes.plugins.toolsets.mcp.toolset_mcp import MCPMode, RemoteMCPToolset
@@ -128,6 +129,7 @@ def load_python_toolsets(
         DatabaseToolset(),
         multi_instance(ElasticsearchDataToolset),
         multi_instance(ElasticsearchClusterToolset),
+        KubernetesFastToolset(),
     ]
 
     if not DISABLE_PROMETHEUS_TOOLSET:

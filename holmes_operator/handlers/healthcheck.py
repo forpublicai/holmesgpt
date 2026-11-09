@@ -84,6 +84,8 @@ async def on_healthcheck_create(
             destinations=[d.model_dump() for d in check_spec.destinations],
             model=check_spec.model,
             namespace=namespace,
+            toolsets=check_spec.toolsets,
+            disable_all_by_default=check_spec.disableAllByDefault,
         )
 
         # Use notifications directly from result (already NotificationStatus instances)

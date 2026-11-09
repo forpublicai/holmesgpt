@@ -52,6 +52,8 @@ class HolmesAPIClient:
         destinations: list,
         model: Optional[str] = None,
         namespace: Optional[str] = None,
+        toolsets: Optional[dict] = None,
+        disable_all_by_default: bool = False,
     ) -> CheckResponse:
         """
         Execute a health check via Holmes API.
@@ -85,6 +87,10 @@ class HolmesAPIClient:
             payload["model"] = model
         if namespace:
             payload["namespace"] = namespace
+        if toolsets:
+            payload["toolsets"] = toolsets
+        if disable_all_by_default:
+            payload["disable_all_by_default"] = True
 
         logger.info(
             f"Executing check '{check_name}' via Holmes API: {url}",

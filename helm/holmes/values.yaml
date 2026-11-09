@@ -131,6 +131,10 @@ serviceAccount:
   imagePullSecrets: []
   annotations: {}
 
+# When true, all default built-in toolsets are disabled. Only toolsets
+# explicitly defined under `toolsets:` will be rendered and active.
+disableAllByDefault: false
+
 toolsets:
   kubernetes/core:
     enabled: true

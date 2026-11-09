@@ -84,6 +84,8 @@ class HealthCheckSpec(BaseModel):
     mode: CheckMode = Field(default=CheckMode.MONITOR)
     model: Optional[str] = None
     destinations: List[DestinationConfig] = Field(default_factory=list)
+    toolsets: Optional[dict[str, Any]] = None
+    disableAllByDefault: bool = False
 
 
 class NotificationStatus(BaseModel):
@@ -141,6 +143,8 @@ class ScheduledHealthCheckSpec(BaseModel):
     mode: CheckMode = Field(default=CheckMode.MONITOR)
     model: Optional[str] = None
     destinations: List[DestinationConfig] = Field(default_factory=list)
+    toolsets: Optional[dict[str, Any]] = None
+    disableAllByDefault: bool = False
 
 
 class ScheduledCheckActiveRef(BaseModel):
@@ -209,6 +213,8 @@ class TriggeredHealthCheckSpec(BaseModel):
     mode: CheckMode = Field(default=CheckMode.MONITOR)
     model: Optional[str] = None
     destinations: List[DestinationConfig] = Field(default_factory=list)
+    toolsets: Optional[dict[str, Any]] = None
+    disableAllByDefault: bool = False
 
 
 class TriggeredDeploymentCooldown(BaseModel):

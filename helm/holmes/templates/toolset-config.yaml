@@ -17,8 +17,18 @@ data:
     {{- /* Copies: merge and mergeOverwrite modify their first argument, so
            rendering this file would otherwise change .Values for every template
            rendered after it. deepCopy fails on null, which has nothing to copy. */}}
-    {{- $toolsets := .Values.toolsets }}
-    {{- if kindIs "map" $toolsets }}{{ $toolsets = deepCopy $toolsets }}{{ end }}
+    {{- $toolsets := dict }}
+    {{- if not .Values.disableAllByDefault }}
+      {{- $toolsets = .Values.toolsets }}
+      {{- if kindIs "map" $toolsets }}{{ $toolsets = deepCopy $toolsets }}{{ end }}
+    {{- else }}
+      {{- /* When disableAllByDefault is true, only include user-specified toolsets with enabled: true */}}
+      {{- range $name, $cfg := .Values.toolsets }}
+        {{- if and (kindIs "map" $cfg) (hasKey $cfg "enabled") }}
+          {{- $_ := set $toolsets $name (deepCopy $cfg) }}
+        {{- end }}
+      {{- end }}
+    {{- end }}
     {{- if .Values.k8sRBAC }}
     {{- $rbacOverrides := dict "kubernetes/core" (dict "enabled" false) "kubernetes/logs" (dict "enabled" false) "bash" (dict "enabled" false) }}
     {{- $toolsets = mergeOverwrite $toolsets $rbacOverrides }}

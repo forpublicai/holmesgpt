@@ -47,6 +47,14 @@ class CheckExecutionRequest(BaseModel):
         None,
         description="Namespace the check runs in (e.g. the HealthCheck CRD namespace).",
     )
+    toolsets: Optional[dict[str, Any]] = Field(
+        None,
+        description="Optional toolset overrides for this check. e.g. {'kubernetes/fast': {'enabled': True}}",
+    )
+    disable_all_by_default: bool = Field(
+        False,
+        description="When true, only toolsets explicitly enabled in toolsets will be used for this check.",
+    )
 
 
 class NotificationStatus(BaseModel):
@@ -72,8 +80,12 @@ class CheckExecutionResponse(BaseModel):
     )
 
 
-def _get_ai(model: Optional[str]) -> ToolCallingLLM:
-    return _CONFIG.create_toolcalling_llm(
+def _get_ai(
+    model: Optional[str],
+    toolsets: Optional[dict[str, Any]] = None,
+    disable_all_by_default: bool = False,
+) -> ToolCallingLLM:
+    ai = _CONFIG.create_toolcalling_llm(
         dal=_CONFIG.dal,
         toolset_tag_filter=SERVER_TOOLSET_TAGS,
         enable_all_toolsets_possible=False,
@@ -81,6 +93,26 @@ def _get_ai(model: Optional[str]) -> ToolCallingLLM:
         reuse_executor=True,
         model=model,
     )
+
+    if disable_all_by_default or toolsets:
+        enabled_names = []
+        disabled_names = []
+        if toolsets:
+            for ts_name, ts_val in toolsets.items():
+                is_enabled = ts_val.get("enabled", True) if isinstance(ts_val, dict) else bool(ts_val)
+                if is_enabled:
+                    enabled_names.append(ts_name)
+                else:
+                    disabled_names.append(ts_name)
+
+        filtered_executor = ai.tool_executor.clone_with_toolset_filter(
+            enabled_toolsets=enabled_names,
+            disabled_toolsets=disabled_names,
+            disable_all_by_default=disable_all_by_default,
+        )
+        ai.tool_executor = filtered_executor
+
+    return ai
 
 
 @checks_app.post("/execute")
@@ -94,7 +126,11 @@ def execute_health_check(
     via the stateless API servers.
     """
     try:
-        ai = _get_ai(request.model)
+        ai = _get_ai(
+            model=request.model,
+            toolsets=request.toolsets,
+            disable_all_by_default=request.disable_all_by_default,
+        )
 
         # Create Check object from request
         # Extract destination names from list of dicts if needed
