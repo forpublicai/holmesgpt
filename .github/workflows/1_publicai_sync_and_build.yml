@@ -160,11 +160,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          poetry install --no-interaction --no-ansi
+          poetry install --with dev --no-interaction --no-ansi
 
       - name: Run fast scanners unit tests
+        env:
+          PYTHONPATH: .
         run: |
-          poetry run pytest tests/plugins/toolsets/test_kubernetes_fast.py tests/plugins/toolsets/test_kubernetes_logs_fast.py -v --no-cov
+          poetry run pytest tests/plugins/toolsets/test_kubernetes_fast.py tests/plugins/toolsets/test_kubernetes_logs_fast.py -v -o addopts=""
 
   # Step 3: Build Holmes Server container image and push to GHCR
   build-and-push-holmes:
