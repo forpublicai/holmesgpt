@@ -1,7 +1,7 @@
 import logging
 import os
 import time
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from holmes.plugins.destinations.webhook.utils import resolve_webhook_headers

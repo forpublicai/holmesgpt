@@ -1,7 +1,7 @@
 """Pydantic models for operator CRD objects."""
 
 from enum import Enum
-from typing import Generic, List, Optional, TypeVar
+from typing import Any, Generic, List, Optional, TypeVar
 
 from pydantic import BaseModel, Field
 
