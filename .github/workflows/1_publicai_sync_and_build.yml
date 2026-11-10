@@ -1,0 +1,263 @@
+name: 1 Public AI Sync Upstream and Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_tag:
+        description: "Upstream tag to build from (leave empty to use latest stable tag, e.g. 0.43.0)"
+        required: false
+        default: ""
+      custom_branch:
+        description: "Custom branch to merge into the release branch"
+        required: false
+        default: "pai-fast-tools"
+      platforms:
+        description: "Target container architectures"
+        required: false
+        default: "linux/amd64"
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  # Step 1: Discover upstream release tag, create fresh release branch pai_release/pai-X.X.X,
+  # and merge our customization branch (pai-fast-tools).
+  sync-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changes: ${{ steps.check-sync.outputs.changes }}
+      upstream_tag: ${{ steps.get-upstream-tag.outputs.upstream_tag }}
+      base_release_tag: ${{ steps.get-upstream-tag.outputs.base_release_tag }}
+      release_tag: ${{ steps.get-upstream-tag.outputs.release_tag }}
+      release_branch: ${{ steps.get-upstream-tag.outputs.release_branch }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/robusta-dev/holmesgpt.git || true
+
+      # Extract latest stable semver tag (ignoring alpha/beta/rc and test tags)
+      - name: Determine upstream tag and release identifiers
+        id: get-upstream-tag
+        run: |
+          if [ -n "${{ github.event.inputs.upstream_tag }}" ]; then
+            UPSTREAM_TAG="${{ github.event.inputs.upstream_tag }}"
+          else
+            LINE=$(git ls-remote --tags upstream | grep -E 'refs/tags/v?[0-9]+\.[0-9]+\.[0-9]+$' | sort -t '/' -k 3 -V | tail -n 1)
+            UPSTREAM_TAG=$(echo "$LINE" | awk -F'/' '{print $3}')
+          fi
+
+          if [ -z "$UPSTREAM_TAG" ]; then
+            echo "Failed to determine upstream tag"
+            exit 1
+          fi
+
+          BASE_RELEASE_TAG="pai-${UPSTREAM_TAG}"
+          RELEASE_TAG="${BASE_RELEASE_TAG}-b${{ github.run_number }}"
+          RELEASE_BRANCH="pai_release/${BASE_RELEASE_TAG}"
+
+          echo "Upstream tag: $UPSTREAM_TAG"
+          echo "Base release tag: $BASE_RELEASE_TAG"
+          echo "Release tag: $RELEASE_TAG"
+          echo "Release branch: $RELEASE_BRANCH"
+
+          echo "upstream_tag=$UPSTREAM_TAG" >> $GITHUB_OUTPUT
+          echo "base_release_tag=$BASE_RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT
+          echo "release_branch=$RELEASE_BRANCH" >> $GITHUB_OUTPUT
+
+      # Check if release tag exists (always proceed when manually triggered via workflow_dispatch)
+      - name: Check if release tag already exists
+        id: check-sync
+        run: |
+          BASE_RELEASE_TAG="${{ steps.get-upstream-tag.outputs.base_release_tag }}"
+          git fetch origin --tags
+
+          if git tag -l "${BASE_RELEASE_TAG}" "${BASE_RELEASE_TAG}-b*" | grep -q .; then
+            echo "Release tag for $BASE_RELEASE_TAG already exists in our repository."
+            echo "changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Release tag for $BASE_RELEASE_TAG is new!"
+            echo "changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fetch branches and tags
+        if: steps.check-sync.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          UPSTREAM_TAG="${{ steps.get-upstream-tag.outputs.upstream_tag }}"
+          CUSTOM_BRANCH="${{ github.event.inputs.custom_branch || 'pai-fast-tools' }}"
+          git fetch upstream tag "$UPSTREAM_TAG" --no-tags
+          git fetch origin "$CUSTOM_BRANCH"
+
+      # Re-create clean release branch from upstream tag, merge our branch, and align workflows with default branch
+      - name: Create release branch and merge customizations
+        if: steps.check-sync.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          UPSTREAM_TAG="${{ steps.get-upstream-tag.outputs.upstream_tag }}"
+          RELEASE_TAG="${{ steps.get-upstream-tag.outputs.release_tag }}"
+          RELEASE_BRANCH="${{ steps.get-upstream-tag.outputs.release_branch }}"
+          CUSTOM_BRANCH="${{ github.event.inputs.custom_branch || 'pai-fast-tools' }}"
+
+          git checkout -B "$RELEASE_BRANCH" "$UPSTREAM_TAG"
+          git merge --no-edit "origin/$CUSTOM_BRANCH"
+
+          # Update version in code and helm chart metadata
+          if [ -f holmes/__init__.py ]; then
+            sed -i "s/__version__ = .*/__version__ = \"${RELEASE_TAG}\"/g" holmes/__init__.py || true
+          fi
+
+          # Keep workflow files aligned with custom branch (pai-fast-tools)
+          git checkout "origin/${CUSTOM_BRANCH}" -- .github/workflows || true
+          if ! git diff --quiet --cached -- .github/workflows || ! git diff --quiet -- .github/workflows; then
+            git add .github/workflows
+            git commit -m "chore: align workflows with ${CUSTOM_BRANCH} for release build" || true
+          fi
+
+          git tag -f "$RELEASE_TAG"
+
+      # Push branch and build tag to remote origin
+      - name: Push release branch and tag
+        if: steps.check-sync.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          RELEASE_TAG="${{ steps.get-upstream-tag.outputs.release_tag }}"
+          RELEASE_BRANCH="${{ steps.get-upstream-tag.outputs.release_branch }}"
+
+          git push origin "$RELEASE_BRANCH" --force
+          git push origin "$RELEASE_TAG" --force
+
+  # Step 2: Fast unit test verification on the release branch before container build
+  test-targeted-unit:
+    needs: sync-and-release
+    if: needs.sync-and-release.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync-and-release.outputs.release_branch }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry==1.8.5
+
+      - name: Install dependencies
+        run: |
+          poetry install --no-interaction --no-ansi
+
+      - name: Run fast scanners unit tests
+        run: |
+          poetry run pytest tests/plugins/toolsets/test_kubernetes_fast.py tests/plugins/toolsets/test_kubernetes_logs_fast.py -v --no-cov
+
+  # Step 3: Build Holmes Server container image and push to GHCR
+  build-and-push-holmes:
+    needs: [sync-and-release, test-targeted-unit]
+    if: needs.sync-and-release.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout merged release code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync-and-release.outputs.release_branch }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata for Holmes image
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes
+
+      - name: Build and push Holmes Server Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes:${{ needs.sync-and-release.outputs.release_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes:${{ needs.sync-and-release.outputs.base_release_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Step 4: Build Holmes Operator container image and push to GHCR
+  build-and-push-operator:
+    needs: [sync-and-release, test-targeted-unit]
+    if: needs.sync-and-release.outputs.changes == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout merged release code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.sync-and-release.outputs.release_branch }}
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata for Holmes Operator image
+        id: meta-operator
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes-operator
+
+      - name: Build and push Holmes Operator Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile.operator
+          push: true
+          platforms: ${{ github.event.inputs.platforms || 'linux/amd64' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes-operator:${{ needs.sync-and-release.outputs.release_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes-operator:${{ needs.sync-and-release.outputs.base_release_tag }}
+            ${{ env.REGISTRY }}/${{ github.repository_owner }}/holmes-operator:latest
+          labels: ${{ steps.meta-operator.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
