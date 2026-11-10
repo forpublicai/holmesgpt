@@ -1,0 +1,101 @@
+# Category R: Language and runtime-specific error rules
+# Can be enabled/disabled per language via LogsFastConfig.enabled_languages
+
+- id: LOG-LANG-JAVA
+  name: Java / JVM runtime exception
+  category: language_runtime
+  language: java
+  severity: high
+  match_mode: any
+  case_insensitive: false
+  enabled: true
+  patterns:
+    - "OutOfMemoryError"
+    - "StackOverflowError"
+    - "NullPointerException"
+    - "NoClassDefFoundError"
+    - "ClassNotFoundException"
+    - "IllegalStateException"
+    - "ConnectionPoolTimeoutException"
+    - "GC overhead limit exceeded"
+  description: "Java / JVM uncaught exception or fatal runtime error."
+  recommendation: "Inspect the Java stack trace, classpath, or JVM memory/GC flags."
+
+- id: LOG-LANG-PYTHON
+  name: Python runtime exception or traceback
+  category: language_runtime
+  language: python
+  severity: high
+  match_mode: any
+  case_insensitive: false
+  enabled: true
+  patterns:
+    - "Traceback (most recent call last)"
+    - "MemoryError"
+    - "ImportError"
+    - "ModuleNotFoundError"
+    - "ConnectionError"
+    - "TimeoutError"
+    - "RuntimeError"
+    - "PermissionError"
+    - "OSError:"
+  description: "Python unhandled exception or traceback."
+  recommendation: "Inspect the Python traceback, installed packages, and container environment."
+
+- id: LOG-LANG-NODEJS
+  name: Node.js / V8 runtime error
+  category: language_runtime
+  language: nodejs
+  severity: high
+  match_mode: any
+  case_insensitive: false
+  enabled: true
+  patterns:
+    - "UnhandledPromiseRejection"
+    - "ERR_CONNECTION_REFUSED"
+    - "ECONNREFUSED"
+    - "ECONNRESET"
+    - "ETIMEDOUT"
+    - "ENOTFOUND"
+    - "EADDRINUSE"
+    - "JavaScript heap out of memory"
+    - "FATAL ERROR:"
+  description: "Node.js unhandled promise rejection, system error code, or V8 heap exhaustion."
+  recommendation: "Inspect the Node.js stack trace, downstream connectivity, or --max-old-space-size."
+
+- id: LOG-LANG-GO
+  name: Go runtime panic or fatal error
+  category: language_runtime
+  language: go
+  severity: critical
+  match_mode: any
+  case_insensitive: false
+  enabled: true
+  patterns:
+    - "panic:"
+    - "fatal error:"
+    - "runtime: out of memory"
+    - "concurrent map writes"
+    - "goroutine leak"
+  description: "Go runtime panic, concurrent map write, or fatal runtime crash."
+  recommendation: "Inspect the goroutine stack trace and nil pointer / concurrency guards."
+
+- id: LOG-LANG-DOTNET
+  name: .NET CLR unhandled exception
+  category: language_runtime
+  language: dotnet
+  severity: high
+  match_mode: any
+  case_insensitive: false
+  enabled: true
+  patterns:
+    - "OutOfMemoryException"
+    - "StackOverflowException"
+    - "NullReferenceException"
+    - "TaskCanceledException"
+    - "HttpRequestException"
+    - "SocketException"
+    - "AggregateException"
+  description: ".NET runtime exception detected."
+  recommendation: "Inspect the .NET exception stack trace and inner exceptions."
+

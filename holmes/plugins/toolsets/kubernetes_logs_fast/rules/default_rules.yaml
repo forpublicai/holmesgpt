@@ -1,0 +1,515 @@
+# Built-in Kubernetes Log Analysis Engine rules (Categories A through Q)
+# Users can override, disable, or extend these via LogsFastConfig without modifying code.
+
+# --- Category D: Memory-related errors ---
+- id: LOG-MEM-001
+  name: Out of memory / heap exhaustion
+  category: memory
+  severity: critical
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "OOMKilled"
+    - "OutOfMemoryError"
+    - "out of memory"
+    - "memory allocation failed"
+    - "cannot allocate memory"
+    - "MemoryError"
+    - "Java heap space"
+    - "GC overhead limit exceeded"
+    - "heap space exhausted"
+    - "memory limit exceeded"
+    - "MemoryPressure"
+    - "Killed process"
+    - "allocation failure"
+    - "malloc failed"
+    - "failed to allocate"
+    - "insufficient memory"
+    - "memory exhausted"
+    - "memory leak"
+    - "heap overflow"
+    - "stack overflow"
+  exclude_patterns:
+    - "oom_kill_disable"
+    - "out_of_memory=false"
+    - "memory_leak=0"
+  description: "Container or application experienced memory exhaustion or OOM termination."
+  recommendation: "Inspect container memory limits, heap settings, and application memory growth."
+
+# --- Category C: Kubernetes-specific errors ---
+- id: LOG-K8S-001
+  name: Kubernetes container or pod lifecycle failure
+  category: kubernetes
+  severity: critical
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "CrashLoopBackOff"
+    - "ImagePullBackOff"
+    - "ErrImagePull"
+    - "CreateContainerConfigError"
+    - "CreateContainerError"
+    - "RunContainerError"
+    - "FailedScheduling"
+    - "FailedCreate"
+    - "FailedMount"
+    - "FailedAttachVolume"
+    - "FailedMapVolume"
+    - "FailedCreatePodSandBox"
+    - "NetworkNotReady"
+    - "NodeNotReady"
+    - "NodeHasInsufficientMemory"
+    - "NodeHasInsufficientDisk"
+    - "Back-off restarting failed container"
+    - "Failed to pull image"
+    - "Failed to create container"
+    - "Failed to create pod sandbox"
+    - "Failed to setup network"
+    - "Failed to assign IP address"
+    - "Unable to attach volume"
+    - "Unable to mount volume"
+    - "Admission webhook denied request"
+    - "ResourceQuota exceeded"
+    - "Failed to reconcile"
+    - "Reconciliation failed"
+    - "ResourceVersion conflict"
+    - "Object has been modified; please apply your changes"
+  description: "Kubernetes controller, kubelet, or runtime reported a pod/resource lifecycle error."
+  recommendation: "Check Pod events, referenced Secrets/ConfigMaps, node capacity, and controller status."
+
+# --- Category F: Disk and filesystem errors ---
+- id: LOG-DISK-001
+  name: Disk capacity or filesystem I/O failure
+  category: disk_filesystem
+  severity: critical
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "no space left on device"
+    - "DiskPressure"
+    - "disk quota exceeded"
+    - "filesystem full"
+    - "read-only file system"
+    - "I/O error"
+    - "Input/output error"
+    - "disk unavailable"
+    - "failed to write"
+    - "failed to flush"
+    - "failed to sync"
+    - "inode exhaustion"
+    - "too many open files"
+    - "file descriptor limit reached"
+    - "operation not permitted"
+    - "filesystem corruption"
+    - "stale file handle"
+    - "device or resource busy"
+  description: "Filesystem capacity exhaustion, file descriptor exhaustion, or storage I/O error."
+  recommendation: "Check node/PVC disk usage, inodes, open file descriptor limits (ulimit), and volume mount health."
+
+# --- Category K: Container runtime errors ---
+- id: LOG-CRI-001
+  name: Container runtime (containerd / CRI / OCI / runc) error
+  category: container_runtime
+  severity: critical
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "containerd error"
+    - "CRI error"
+    - "OCI runtime error"
+    - "runc error"
+    - "failed to start container"
+    - "failed to create shim"
+    - "container process exited"
+    - "container runtime unavailable"
+    - "failed to create task"
+    - "failed to start shim"
+    - "failed to unpack image"
+    - "failed to extract layer"
+    - "snapshotter error"
+    - "failed to mount root filesystem"
+    - "failed to set up container networking"
+    - "failed to kill container"
+    - "runtime connection refused"
+  description: "Low-level container runtime failed to start, unpack, or manage a container."
+  recommendation: "Inspect node containerd/CRI service health, disk space, and container entrypoint."
+
+# --- Category L: Kubernetes control-plane errors ---
+- id: LOG-CP-001
+  name: Control-plane / etcd / leader election failure
+  category: control_plane
+  severity: critical
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "etcdserver: request timed out"
+    - "etcdserver: no leader"
+    - "failed to reach quorum"
+    - "apiserver unavailable"
+    - "reflector error"
+    - "watch closed"
+    - "failed to sync cache"
+    - "unable to retrieve API resources"
+    - "failed to renew lease"
+    - "failed to update lease"
+    - "leader election lost"
+    - "failed to acquire lease"
+    - "failed to renew leadership"
+    - "controller sync error"
+    - "failed to process work item"
+    - "throttling request"
+  description: "Kubernetes control plane, etcd, or controller lease coordination error."
+  recommendation: "Check API server latency, etcd quorum/disk latency, and controller-manager leader lease."
+
+# --- Category H: Database errors ---
+- id: LOG-DB-001
+  name: Database connectivity, lock, or query failure
+  category: database
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "database connection failed"
+    - "connection pool exhausted"
+    - "too many connections"
+    - "password authentication failed"
+    - "database unavailable"
+    - "database does not exist"
+    - "relation does not exist"
+    - "deadlock detected"
+    - "lock wait timeout"
+    - "transaction aborted"
+    - "transaction rolled back"
+    - "query timeout"
+    - "replication lag"
+    - "replication failed"
+    - "primary unavailable"
+    - "read-only transaction"
+    - "connection terminated unexpectedly"
+    - "too many clients"
+    - "pool timeout"
+    - "failed to acquire connection"
+    - "database disk full"
+  description: "Application encountered a database connection, pool, lock, or transaction error."
+  recommendation: "Check database availability, connection pool sizing, credentials, and long-running locks."
+
+# --- Category G: Network errors ---
+- id: LOG-NET-001
+  name: Network connectivity or upstream transport failure
+  category: network
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "connection refused"
+    - "connection reset by peer"
+    - "connection reset"
+    - "connection timed out"
+    - "connection timeout"
+    - "network unreachable"
+    - "no route to host"
+    - "host unreachable"
+    - "broken pipe"
+    - "network is unreachable"
+    - "connection closed unexpectedly"
+    - "upstream unavailable"
+    - "upstream timed out"
+    - "packet loss"
+    - "network interface down"
+    - "address already in use"
+    - "bind failed"
+    - "socket error"
+  description: "Network connection failed, timed out, or was reset by peer/upstream."
+  recommendation: "Verify target Service/Pod endpoints, port bindings, and NetworkPolicies."
+
+# --- Category N: DNS and service discovery errors ---
+- id: LOG-DNS-001
+  name: DNS lookup or service discovery failure
+  category: dns_discovery
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "no such host"
+    - "DNS lookup failed"
+    - "DNS resolution failed"
+    - "name resolution failed"
+    - "server misbehaving"
+    - "SERVFAIL"
+    - "NXDOMAIN"
+    - "no endpoints available"
+    - "no ready endpoints"
+    - "endpoint not found"
+    - "service not found"
+    - "failed to resolve hostname"
+    - "temporary failure in name resolution"
+    - "upstream DNS timeout"
+  description: "Service name or hostname could not be resolved via DNS or endpoint discovery."
+  recommendation: "Check CoreDNS health in kube-system, Service names, and Egress NetworkPolicies for port 53."
+
+# --- Category Q: Certificate and encryption errors ---
+- id: LOG-TLS-001
+  name: TLS handshake or X.509 certificate failure
+  category: certificate_tls
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "certificate expired"
+    - "certificate is not yet valid"
+    - "certificate has expired"
+    - "unknown certificate authority"
+    - "unknown CA"
+    - "x509:"
+    - "certificate verify failed"
+    - "TLS handshake failed"
+    - "SSL handshake failed"
+    - "TLS handshake timeout"
+    - "TLS handshake error"
+    - "private key mismatch"
+    - "certificate and key do not match"
+    - "failed to load certificate"
+    - "failed to renew certificate"
+    - "certificate request denied"
+    - "issuer not ready"
+    - "failed to obtain certificate"
+  description: "TLS handshake or X.509 certificate validation/renewal failed."
+  recommendation: "Check TLS Secret expiry dates, CA bundles, hostname SANs, and cert-manager status."
+
+# --- Category J: Authentication and security errors ---
+- id: LOG-AUTH-001
+  name: Authentication, authorization, or RBAC denial
+  category: auth_security
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "Access denied"
+    - "Permission denied"
+    - "Authentication failed"
+    - "Authorization failed"
+    - "Invalid credentials"
+    - "Invalid token"
+    - "Token expired"
+    - "Session expired"
+    - "Certificate revoked"
+    - "Invalid certificate"
+    - "RBAC denied"
+    - "Forbidden: User"
+    - "ServiceAccount not found"
+    - "Failed to authenticate"
+    - "Failed to authorize"
+    - "Invalid bearer token"
+    - "Signature verification failed"
+    - "Secret not found"
+    - "Failed to retrieve Secret"
+    - "Webhook denied request"
+  description: "Authentication or authorization failure blocked an operation."
+  recommendation: "Verify API keys, OAuth/JWT tokens, Kubernetes RBAC RoleBindings, and referenced Secrets."
+
+# --- Category M: Storage and volume errors ---
+- id: LOG-STOR-001
+  name: Volume mount, attach, or provisioning failure
+  category: storage_volume
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "MountVolume.SetUp failed"
+    - "MountVolume.MountDevice failed"
+    - "volume attachment failed"
+    - "volume not found"
+    - "volume unavailable"
+    - "volume already attached"
+    - "failed to provision volume"
+    - "provisioning failed"
+    - "storage class not found"
+    - "persistent volume claim not found"
+    - "claim is not bound"
+    - "failed to expand volume"
+    - "filesystem resize failed"
+    - "CSI driver unavailable"
+    - "CSI connection failed"
+    - "volume detach failed"
+    - "device not found"
+  description: "Persistent volume provisioning, attachment, or mounting failed."
+  recommendation: "Inspect PVC/PV status, VolumeAttachments, StorageClass, and CSI driver logs."
+
+# --- Category O: Application lifecycle errors ---
+- id: LOG-LIFE-001
+  name: Application startup, shutdown, configuration, or health check failure
+  category: app_lifecycle
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "startup failed"
+    - "application failed to start"
+    - "initialization failed"
+    - "initialization timeout"
+    - "shutdown failed"
+    - "graceful shutdown timeout"
+    - "failed to load configuration"
+    - "missing configuration"
+    - "configuration invalid"
+    - "missing environment variable"
+    - "invalid environment variable"
+    - "dependency unavailable"
+    - "dependency initialization failed"
+    - "health check failed"
+    - "readiness check failed"
+    - "liveness check failed"
+    - "failed to initialise"
+    - "failed to initialise connection pool"
+    - "failed to register service"
+    - "exited with code"
+    - "non-zero exit"
+  exclude_patterns:
+    - "exited with code 0"
+    - "exit code 0"
+    - "exit status 0"
+  description: "Application failed during initialization, configuration loading, probe check, or shutdown."
+  recommendation: "Check required environment variables, mounted ConfigMaps/Secrets, and probe endpoints."
+
+# --- Category P: Messaging and queue errors ---
+- id: LOG-MSG-001
+  name: Message broker or queue processing failure
+  category: messaging_queue
+  severity: high
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "broker unavailable"
+    - "connection to broker failed"
+    - "consumer failed"
+    - "producer failed"
+    - "message processing failed"
+    - "message delivery failed"
+    - "message rejected"
+    - "message lost"
+    - "dead letter queue"
+    - "consumer lag"
+    - "offset out of range"
+    - "rebalance failed"
+    - "partition unavailable"
+    - "leader unavailable"
+    - "failed to acknowledge"
+    - "failed to commit offset"
+    - "publish timeout"
+    - "acknowledgement timeout"
+  description: "Message broker connectivity, consumer group rebalance, or message delivery failed."
+  recommendation: "Check Kafka/RabbitMQ/queue broker health, consumer group lag, and dead-letter queues."
+
+# --- Category I: HTTP and application status errors ---
+- id: LOG-HTTP-001
+  name: HTTP 5xx / 4xx application or gateway error
+  category: http_application
+  severity: high
+  match_mode: regex
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "\\bHTTP[/ ]1\\.[01][\"' ]+50[0-4]\\b"
+    - "\\bHTTP\\s+(?:50[0-4]|429|401|403|408)\\b"
+    - "\\bstatus(?:_code|Code)?[\"'=:\\s]+(?:50[0-4]|429)\\b"
+    - "\\b(?:Internal Server Error|Bad Gateway|Service Unavailable|Gateway Timeout|Upstream failure|Rate limit exceeded|Too many requests)\\b"
+  description: "HTTP 5xx server failure, 429 rate limiting, or upstream gateway error."
+  recommendation: "Inspect upstream service health, request timeouts, and rate-limiting rules."
+
+# --- Category E: CPU and performance errors ---
+- id: LOG-PERF-001
+  name: CPU throttling, thread exhaustion, or deadline timeout
+  category: cpu_performance
+  severity: medium
+  match_mode: any
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "CPU throttling"
+    - "CPUThrottlingHigh"
+    - "CPU limit exceeded"
+    - "CPU starvation"
+    - "high CPU usage"
+    - "processing timeout"
+    - "request timeout"
+    - "execution timeout"
+    - "operation took too long"
+    - "deadline exceeded"
+    - "context deadline exceeded"
+    - "latency exceeded"
+    - "slow query"
+    - "thread pool exhausted"
+    - "thread starvation"
+    - "too many threads"
+    - "unable to create new native thread"
+    - "worker pool exhausted"
+    - "event loop blocked"
+  description: "Application experienced timeouts, thread pool exhaustion, or CPU starvation."
+  recommendation: "Check container CPU limits, worker/thread pool settings, and downstream latency."
+
+# --- Category A: General error indicators ---
+- id: LOG-GEN-001
+  name: General fatal, panic, exception, or error indicator
+  category: general_error
+  severity: high
+  match_mode: regex
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "\\b(?:FATAL|CRITICAL|SEVERE|PANIC|panicked|AssertionError)\\b"
+    - "\\b(?:Unhandled exception|Unhandled rejection|Uncaught exception|Traceback|Stack trace)\\b"
+    - "\\b(?:Unexpected error|Internal error|Operation failed|Request failed|Task failed|Process failed)\\b"
+    - "\\b(?:ERROR|ERR|FAILURE|FAILED|Exception)\\b"
+  exclude_patterns:
+    - "0 errors"
+    - "0 failed"
+    - "errors=0"
+    - "error=nil"
+    - "error=null"
+    - "error=<nil>"
+    - "\"error\":null"
+    - "\"error\": null"
+    - "\"error\":\"\""
+    - "\"error\": \"\""
+    - "\"errors\":[]"
+    - "\"errors\": []"
+    - "no error"
+    - "without error"
+    - "error_count: 0"
+    - "error_count=0"
+  description: "General error, exception, or failure indicator detected in logs."
+  recommendation: "Inspect the sample log message and surrounding stack trace for root cause."
+
+# --- Category B: Warning indicators ---
+- id: LOG-WARN-001
+  name: Warning, retry, backoff, or degradation indicator
+  category: warning
+  severity: medium
+  match_mode: regex
+  case_insensitive: true
+  enabled: true
+  patterns:
+    - "\\b(?:WARN|WARNING|DEPRECATED)\\b"
+    - "\\b(?:Retry limit exceeded|Backoff|Back-off|Timed out|Slow response)\\b"
+    - "\\b(?:Resource exhausted|Resource unavailable|Connection lost|Connection interrupted)\\b"
+    - "\\b(?:Degraded|Unhealthy|Not ready|Reconnecting|Reconnection failed)\\b"
+    - "\\b(?:Threshold exceeded|Rate limited|Throttled|Queue full|Queue overflow)\\b"
+  exclude_patterns:
+    - "0 warnings"
+    - "warnings=0"
+  description: "Warning, retry backoff, throttling, or service degradation indicator."
+  recommendation: "Monitor frequency and check if retries/warnings precede a hard failure."
+
